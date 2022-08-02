@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<Actions>
+    <Action id="webhook" uiPath="hidden">
+        <Name>Reflector Webhooks</Name>
+        <CallbackMethod>reflector_handler</CallbackMethod>
+    </Action>
+</Actions>

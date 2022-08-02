@@ -1,0 +1,117 @@
+<?xml version="1.0"?>
+<PluginConfig>
+	<SupportURL>https://github.com/flic/beacon</SupportURL>
+
+    <Field id="autoLabel1" type="label"> 
+        <Label>Beacon can receive HTTP updates from multiple sources. It's primarily designed for Geohopper, Geofancy and Beecon.</Label>
+    </Field>
+   <Field id="reflector_api_key" type="textfield">
+        <Label>Reflector REST API key:</Label>
+    </Field>
+   <Field id="reflector_Note" type="label" fontSize="small" fontColor="darkgray">
+        <Label>See https://www.indigodomo.com/account/authorizations</Label>
+    </Field>
+
+    <Field id="simpleSeparator1" type="separator"/>
+    
+    <Field type="checkbox" id="createDevice" defaultValue="true">
+    	<Label>Create device</Label>
+    	<Description>Automatically create device if it doesn't exist</Description>
+    </Field>
+    
+    <Field id="simpleSeparator2" type="separator"/>
+    
+    <Field type="checkbox" id="geohopper" defaultValue="true">
+    	<Label>Enable Geohopper</Label>
+    </Field>
+    
+    <Field id="autoLabel3" type="label"> 
+        <Label>Geohopper uses HTTP PUT to send JSON formatted updates. You need to make sure your server is reachable from the Internet on the TCP port above for this to work. The Geohopper Web Service needs to be configured to use http://your-server:port.</Label>
+    </Field>
+
+    <Field id="simpleSeparator3" type="separator"/>
+    
+    <Field type="checkbox" id="geofancy" defaultValue="true">
+    	<Label>Enable Locative</Label>
+    </Field>
+    
+    <Field id="autoLabel4" type="label"> 
+        <Label>Geofancy uses HTTP PUT to send www-form-urlencoded updates. The Geofancy Web Service needs to be configured to use http://your-server:port.</Label>
+    </Field>
+
+    <Field id="simpleSeparator4" type="separator"/>
+    
+    <Field type="checkbox" id="geofency" defaultValue="true">
+    	<Label>Enable Geofency</Label>
+    </Field>
+    
+    <Field id="autoLabel5" type="label"> 
+        <Label>Geofency uses HTTP PUT to send JSON formatted updates. The Geofency Web Service needs to be configured to use http://your-server:port.</Label>
+    </Field>
+        
+    <Field id="simpleSeparator5" type="separator"/>
+    
+    <Field type="checkbox" id="beecon" defaultValue="true">
+    	<Label>Enable Beecon</Label>
+    </Field>
+    
+    <Field id="autoLabel6" type="label"> 
+        <Label>Beecon uses HTTP PUT to send a query to the webserver. The Beecon Call URL needs to be configured to use http://your-server:port.</Label>
+    </Field>
+
+	<Field id="simpleSeparator6" type="separator"/>
+	
+	<Field type="checkbox" id="custom" defaultValue="false">
+		<Label>Custom application</Label>
+		<Description>Custom application capable of HTTP POST (Content-type: application/x-www-form-urlencoded)</Description>
+	</Field>
+	<Field type="textfield" id="customSender" defaultValue="sender" visibleBindingId="custom" visibleBindingValue="true">
+		<Label>Sender field</Label>
+		<Description>Name of field that includes sender information</Description>
+	</Field>
+	<Field type="textfield" id="customLocation" defaultValue="location" visibleBindingId="custom" visibleBindingValue="true">
+		<Label>Location field</Label>
+		<Description>Name of field that includes location information</Description>
+	</Field>
+	<Field type="textfield" id="customAction" defaultValue="action" visibleBindingId="custom" visibleBindingValue="true">
+		<Label>Action field</Label>
+		<Description>Name of field that includes information of action taken (entry/exit)</Description>
+	</Field>
+	<Field type="textfield" id="customEnter" defaultValue="enter" visibleBindingId="custom" visibleBindingValue="true">
+		<Label>Entry trigger</Label>
+		<Description>Value of action field that triggers an entry action</Description>
+	</Field>
+	<Field type="textfield" id="customExit" defaultValue="exit" visibleBindingId="custom" visibleBindingValue="true">
+		<Label>Exit trigger</Label>
+		<Description>Value of action field that triggers an exit action</Description>
+	</Field>
+	<Field id="simpleSeparator7" type="separator"/>
+
+	<Field type="checkbox" id="createVar" defaultValue="false">
+		<Label>Create variables:</Label>
+		<Description>Creates "Beacon_" deviceID, name and location variables when triggered.</Description>
+	</Field>
+    
+	<Field id="simpleSeparator8" type="separator"/>
+	
+	<Field type="checkbox" id="testTrigger" defaultValue="false">
+		<Label>Trigger on test message</Label>
+		<Description>Executes trigger when a test message is received</Description>
+	</Field>
+	<Field type="menu" id="testTriggeraction" defaultValue="toggle" visibleBindingId="testTrigger" visibleBindingValue="true">
+		<Label>Type of trigger:</Label>
+		<List>
+			<Option value="enter">Enter</Option>
+			<Option value="exit">Exit</Option>
+			<Option value="toggle">Toggle</Option>
+		</List>
+	</Field>
+
+	<Field id="simpleSeparator9" type="separator"/>
+	
+	<Field type="checkbox" id="debugEnabled" defaultValue="false">
+		<Label>Enable debugging:</Label>
+		<Description>(not recommended)</Description>
+	</Field>
+
+</PluginConfig>

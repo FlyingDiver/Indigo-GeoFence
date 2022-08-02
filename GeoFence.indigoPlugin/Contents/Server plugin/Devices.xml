@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<Devices>
+		<Device type="sensor" id="beacon">
+		<Name>Geofence Beacon</Name>
+		<ConfigUI>
+			<SupportURL>https://github.com/flic/beacon</SupportURL>
+			<Field id="label1" type="label">
+				<Label>Device address, in the form of [sender name]@@[location/region name]</Label>
+			</Field>
+			<Field id="label2" type="label">
+				<Label>For example, if you're using Geohopper sender name is usually your email address, and location name is the name of the region: "name@example.com@@myregion".</Label>
+			</Field>
+ 			<Field id="address" type="textfield">
+ 				<Label>Address:</Label>
+ 				<Description>Device address, in the form of [sender name]@@[location/region name]</Description>
+ 			</Field>
+			<Field id="SupportsOnState" type="checkbox" defaultValue="true" hidden="true">
+				<Label>Show ON/OFF state:</Label>
+			</Field>
+			<Field id="SupportsSensorValue" type="checkbox" defaultValue="false" hidden="true">
+				<Label>Show sensor value state:</Label>
+			</Field>
+			<Field id="SupportsStatusRequest" type="checkbox" defaultValue="false" hidden="true">
+				<Label>Enable status request / refresh button:</Label>
+			</Field>
+			<Field id="AllowOnStateChange" type="checkbox" defaultValue="false" hidden="false">
+				<Label>Enable controls to override on/off state</Label>
+			</Field>
+			<Field id="AllowSensorValueChange" type="checkbox" defaultValue="false" hidden="true">
+				<Label>Enable controls to override sensor value state</Label>
+			</Field>
+		</ConfigUI>
+		<States>
+		</States>
+	</Device>
+</Devices>
