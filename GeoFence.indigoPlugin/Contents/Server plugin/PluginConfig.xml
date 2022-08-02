@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <PluginConfig>
-	<SupportURL>https://github.com/flic/beacon</SupportURL>
+	<SupportURL>https://github.com/FlyingDiver/Indigo-GeoFence/</SupportURL>
 
     <Field id="autoLabel1" type="label"> 
         <Label>Beacon can receive HTTP updates from multiple sources. It's primarily designed for Geohopper, Geofancy and Beecon.</Label>

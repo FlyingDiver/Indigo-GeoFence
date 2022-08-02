@@ -41,10 +41,9 @@ class Plugin(indigo.PluginBase):
 
     def startup(self):
         self.loadPluginPrefs()
-        self.logger.debug("Startup called")
 
     def deviceCreated(self, device):
-        self.logger.debug(device.name + f"Created device of type \"{device.deviceTypeId}\"")
+        self.logger.debug(f"{device.name}: Created device of type '{device.deviceTypeId}'")
         self.deviceList[device.id] = {'ref': device, 'name': device.name, 'address': device.address.lower()}
 
     def deviceStartComm(self, device):
@@ -56,7 +55,7 @@ class Plugin(indigo.PluginBase):
 
     def deviceStopComm(self, device):
         self.logger.debug(f"{device.name}: Stopping device")
-        if device.deviceTypeId == u'beacon':
+        if device.deviceTypeId == 'beacon':
             del self.deviceList[device.id]
 
     def shutdown(self):
