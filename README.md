@@ -1,53 +1,29 @@
 Beacon
 ======
 
-Indigo Plugin: Beacon
+This plugin is based on the Beacon plugin by Fredrik Furtenbach last updated in 2016.
 
-I wrote Beacon to be able to use iBeacons in my home automation setup. It seemed
-to me that the easiest way to do that was to use one of the existing iBeacon
-compatible apps and interface it with Indigo. I’d been playing around with
-Geohopper (which, added bonus, supports geofencing as well as iBeacons) and
-Beecon and since I felt that they had different pros and cons I decided to build
-the plugin for both. In the latest version I also added support for Geofancy.
+It has been updated for Indigo 2022.X (Python 3).  It now uses the Indigo Reflector service and
+does require port forwarding to be set up.
 
-Geohopper has built in support for web services (in-app purchase) and can be
-configured to HTTP POST a JSON-formatted event when entering or exiting a
-region. The post originates from a central location, not from the app itself,
-which means that the plugin needs to be accessible from the Internet for it to
-work. This means opening the firewall for the configured port and allow traffic
-to the Indigo server. The TCP port can be selected from the plugin configuration
-screen. The URL to use in the Geohopper app should look like this:
-http://[Indigo server FQDN or IP]:[port number].
+Instead of a port number in the plugin config dialog you must provide a Reflector API key.  
+See https://www.indigodomo.com/account/authorizations/ for more information.  On plugin startup,
+the URL to be used in the mobile apps will be displayed.  It will look something like this:
 
-Examples: http://home.example.com:6192, or http://1.2.3.4:6192 where 1.2.3.4 is
-your external (public) IP-address.
+`https://XXX.indigodomo.net/message/se.furtenbach.indigo.plugin.beacon/webhook?api_key=XXX-YYY-ZZZ-111-2345678
+`
 
-Beecon can be used ether over the Internet or over a local LAN, so if sending
-events over the Internet isn’t needed the Indigo server doesn’t need to be
-exposed. In Beecon you need to format the URL yourself to get it to work with
-the plugin, according to this spec: http://[Indigo server FQDN or IP]:[port
-number]/?sender=[sender_name]&location=[location_name]&event=[event] where event
-can be either LocationEnter, LocationExit or LocationTest.
+You must copy the entire URL to the mobile app.  I recommend using email, SMS, or Notes to copy it
+to your devices.
 
-Examples:
-http://home.example.com:6192/?sender=email\@example.com&location=home&event=LocationEnter,
-or http://1.2.3.4:6192/?sender=MyName&location=garage&event=LocationExit
 
-Geofancy uses HTTP PUT or HTTP GET to send www-form-urlencoded updates. (More
-info on the Geofancy Wiki.) The Geofancy app needs to be configured to use
-http://your-server:port and can be used on a local LAN or over the Internet.
+| Requirement            |        |
+|------------------------|--------|
+| Minimum Indigo Version | 2022.1 |
+| Python Library (API)   | None   |
+| Requires Local Network | No     |
+| Requires Internet      | Yes    |
+| Hardware Interface     | None   |
 
-### Indigo Domotics note 2017/12/08
-
-The original author of this plugin is no longer actively maintaining it. With
-his permission, we’ve forked his repository into our open source repo, bumped
-the version number, and added it to the plugin store. We will not be maintaining
-this plugin, but anyone who is interested in making updates is more than welcome
-to do so. We’ll accept any pull requests after a cursory code review just to
-make sure the change doesn’t do anything malicious.
-
-If you are interested in taking over maintenance, please let us know and we’ll
-gladly give you direct management permissions.
-
-Indigo Domotics doesn't guarantee that this plugin works. We are only hosting
-the project here in our open source repository for Indigo plugins.
+The plugin has (currently) been tested with the Locative and Geofency mobile apps.  It should 
+work with other apps that the original Beacon plugin supported.
