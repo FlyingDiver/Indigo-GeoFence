@@ -4,6 +4,7 @@
 		<Name>Geofence Beacon</Name>
 		<ConfigUI>
 			<SupportURL>https://github.com/FlyingDiver/Indigo-GeoFence/</SupportURL>
+            <Field id="states_list" type="list" hidden="true"><List class="self" method="getStateList"/></Field>
 			<Field id="label1" type="label">
 				<Label>Device address, in the form of [sender name]@@[location/region name]</Label>
 			</Field>

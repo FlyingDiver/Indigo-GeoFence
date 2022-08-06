@@ -42,24 +42,17 @@ class Plugin(indigo.PluginBase):
     def startup(self):
         self.loadPluginPrefs()
 
-    def deviceCreated(self, device):
-        self.logger.debug(f"{device.name}: Created device of type '{device.deviceTypeId}'")
-        self.deviceList[device.id] = {'ref': device, 'name': device.name, 'address': device.address.lower()}
-
     def deviceStartComm(self, device):
         self.logger.debug(f"{device.name }: Starting device")
-        if device.deviceTypeId == 'userLocation':
-            self.logger.error(f"Device {device.name} needs to be deleted and recreated.")
-        else:
-            self.deviceList[device.id] = {'ref': device, 'name': device.name, 'address': device.address.lower()}
+        self.deviceList[device.id] = {'name': device.name, 'address': device.address.lower()}
+        device.stateListOrDisplayStateIdChanged()
 
     def deviceStopComm(self, device):
         self.logger.debug(f"{device.name}: Stopping device")
-        if device.deviceTypeId == 'beacon':
-            del self.deviceList[device.id]
+        del self.deviceList[device.id]
 
     def shutdown(self):
-        self.logger.debug(u"Shutdown called")
+        self.logger.debug("Shutdown called")
 
     def triggerStartProcessing(self, trigger):
         self.logger.debug(f"Start processing trigger {trigger.name}")
@@ -148,24 +141,100 @@ class Plugin(indigo.PluginBase):
         else:
             self.logger.info(f"Reflector webhook_url: {indigo.server.getReflectorURL()}/message/{self.pluginId}/webhook?api_key={self.reflector_api_key}")
 
-    def deviceUpdate(self, device, deviceAddress, event):
-        self.logger.debug("deviceUpdate called")
+    @staticmethod
+    def getStateList(filter, valuesDict, typeId, deviceId):
+        returnList = list()
+        if 'states_list' in valuesDict:
+            for topic in valuesDict['states_list']:
+                returnList.append(topic)
+        return returnList
+
+    def getDeviceStateList(self, device):
+        stateList = indigo.PluginBase.getDeviceStateList(self, device)
+        add_states = device.pluginProps.get("states_list", indigo.List())
+        for key in add_states:
+            dynamic_state = self.getDeviceStateDictForStringType(str(key), str(key), str(key))
+            stateList.append(dynamic_state)
+        self.logger.threaddebug(f"{device.name}: getDeviceStateList returning: {stateList}")
+        return stateList
+
+    def triggerEvent(self, eventType, deviceAddress):
+        self.logger.debug("triggerEvent called")
+        for trigger in self.events[eventType]:
+            if self.events[eventType][trigger].pluginProps["manualAddress"]:
+                indigo.trigger.execute(trigger)
+            elif fnmatch.fnmatch(deviceAddress.lower(), self.events[eventType][trigger].pluginProps["deviceAddress"].lower()):
+                indigo.trigger.execute(trigger)
+
+    def deviceCreate(self, sender, location):
+        self.logger.debug("deviceCreate called")
+        deviceName = f"{sender}@@{location}"
+        device = indigo.device.create(name=deviceName, address=deviceName, deviceTypeId="beacon", protocol=indigo.kProtocol.Plugin)
+        self.deviceList[device.id] = {'name': device.name, 'address': device.address.lower()}
+        self.logger.debug(f"Created new device, {deviceName}")
+        device.updateStateOnServer("onOffState", False)
+        device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
+        return device.id
+
+    def parseResult(self, sender, location, event, body_params):
+        self.logger.debug(f"parseResult called, sender: {sender}, location: {location}, event: {event}, body_params: {body_params}")
+        deviceAddress = f"{sender.lower()}@@{location.lower()}"
+        foundDevice = False
+        devID = None
+
+        if self.deviceList:
+            for devID in self.deviceList:
+                if self.deviceList[devID]['address'] == deviceAddress:
+                    self.logger.debug(f"Found userLocation device: {self.deviceList[devID]['name']}")
+                    foundDevice = True
+        if not foundDevice:
+            self.logger.warning(f"Received {event} from {deviceAddress} but no corresponding device exists")
+            if self.createDevice:
+                devID = self.deviceCreate(sender, location)
+            else:
+                devID = None
+        if not devID:
+            return
+
+        device = indigo.devices[int(devID)]
+        states_list = []
+        old_states = device.pluginProps.get("states_list", indigo.List())
+        new_states = indigo.List()
+        for key in body_params:
+            if body_params[key] is not None:
+                new_states.append(key)
+                self.logger.threaddebug(f"{device.name}: adding to states_list: {key}, {body_params[key]}, {type(body_params[key])}")
+                if type(body_params[key]) in (int, bool, str):
+                    states_list.append({'key': key, 'value': body_params[key]})
+                elif type(body_params[key]) is float:
+                    states_list.append({'key': key, 'value': body_params[key], 'decimalPlaces': 2})
+
+        if set(old_states) != set(new_states):
+            self.logger.threaddebug(f"{device.name}: update, new_states: {new_states}")
+            self.logger.threaddebug(f"{device.name}: update, states_list: {states_list}")
+            newProps = device.pluginProps
+            newProps["states_list"] = new_states
+            device.replacePluginPropsOnServer(newProps)
+            device.stateListOrDisplayStateIdChanged()
+        device.updateStatesOnServer(states_list)
 
         if self.createVar:
             updateVar("Beacon_deviceID", str(device.id))
-            updateVar("Beacon_name", deviceAddress.split('@@')[0])
-            updateVar("Beacon_location", deviceAddress.split('@@')[1])
+            updateVar("Beacon_name", sender.lower())
+            updateVar("Beacon_location", location.lower())
 
         if event == "LocationEnter" or event == "enter" or event == "1" or event == self.customEnter:
             indigo.server.log(f"Enter location notification received from sender/location {deviceAddress}")
             device.updateStateOnServer("onOffState", True)
             device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
             self.triggerEvent("statePresent", deviceAddress)
+
         elif event == "LocationExit" or event == "exit" or event == "0" or event == self.customExit:
             indigo.server.log(f"Exit location notification received from sender/location {deviceAddress}")
             device.updateStateOnServer("onOffState", False)
             device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
             self.triggerEvent("stateAbsent", deviceAddress)
+
         elif event == "LocationTest" or event == "test":
             indigo.server.log(f"Test location notification received from sender/location {deviceAddress}")
             if self.testTrigger:
@@ -182,41 +251,8 @@ class Plugin(indigo.PluginBase):
                         device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
                     else:
                         device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
+
         self.triggerEvent("stateChange", deviceAddress)
-
-    def triggerEvent(self, eventType, deviceAddress):
-        self.logger.debug("triggerEvent called")
-        for trigger in self.events[eventType]:
-            if self.events[eventType][trigger].pluginProps["manualAddress"]:
-                indigo.trigger.execute(trigger)
-            elif fnmatch.fnmatch(deviceAddress.lower(), self.events[eventType][trigger].pluginProps["deviceAddress"].lower()):
-                indigo.trigger.execute(trigger)
-
-    def deviceCreate(self, sender, location):
-        self.logger.debug("deviceCreate called")
-        deviceName = f"{sender}@@{location}"
-        device = indigo.device.create(address=deviceName, deviceTypeId="beacon", name=deviceName, protocol=indigo.kProtocol.Plugin)
-        self.deviceList[device.id] = {'ref': device, 'name': device.name, 'address': device.address.lower()}
-        self.logger.debug(f"Created new device, {deviceName}")
-        device.updateStateOnServer("onOffState", False)
-        device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
-        return device.id
-
-    def parseResult(self, sender, location, event):
-        self.logger.debug(f"parseResult called, sender: {sender}, location: {location}, event: {event}")
-        deviceAddress = f"{sender.lower()}@@{location.lower()}"
-        foundDevice = False
-        if self.deviceList:
-            for b in self.deviceList:
-                if self.deviceList[b]['address'] == deviceAddress:
-                    self.logger.debug(f"Found userLocation device: {self.deviceList[b]['name']}")
-                    self.deviceUpdate(self.deviceList[b]['ref'], deviceAddress, event)
-                    foundDevice = True
-        if not foundDevice:
-            self.logger.warning(f"Received {event} from {deviceAddress} but no corresponding device exists")
-            if self.createDevice:
-                newdev = self.deviceCreate(sender, location)
-                self.deviceUpdate(self.deviceList[newdev]['ref'], deviceAddress, event)
 
     def reflector_handler(self, action, dev=None, callerWaitingForResult=None):
         self.logger.debug(f"reflector_handler: {action.props}")
@@ -239,7 +275,7 @@ class Plugin(indigo.PluginBase):
                 if all((name in p) for name in (self.customSender, self.customLocation, self.customAction)):
                     self.logger.debug(u"Recognised Custom")
                     if (p[self.customAction] == self.customEnter) or (p[self.customAction] == self.customExit):
-                        self.parseResult(p[self.customSender], p[self.customLocation], p[self.customAction])
+                        self.parseResult(p[self.customSender], p[self.customLocation], p[self.customAction], action_props['body_params'])
                     else:
                         self.logger.error("Received Custom data, but value of Action parameter wasn't recognised")
                     return
@@ -253,7 +289,7 @@ class Plugin(indigo.PluginBase):
                         for key, value in action_props['body_params'].items():
                             p.update({key: value})
                         if all((name in p) for name in ('device', 'id', 'trigger')):
-                            self.parseResult(p["device"], p["id"], p["trigger"])
+                            self.parseResult(p["device"], p["id"], p["trigger"], action_props['body_params'])
                         else:
                             self.logger.error("Received Locative/Geofancy data, but one or more parameters are missing")
                     else:
@@ -270,13 +306,13 @@ class Plugin(indigo.PluginBase):
                         for key, value in action_props['body_params'].items():
                             p.update({key: value})
                         if all((name in p) for name in ('name', 'entry', 'device')):
-                            self.parseResult(p["device"], p["name"], p["entry"])
+                            self.parseResult(p["device"], p["name"], p["entry"], action_props['body_params'])
                         else:
                             self.logger.error(u"Received Geofency data, but one or more parameters are missing")
                     elif ctype == 'application/json':
                         p = json.loads(action_props['request_body'])
                         if all((name in p) for name in ('name', 'entry', 'device')):
-                            self.parseResult(p["device"], p["name"], p["entry"])
+                            self.parseResult(p["device"], p["name"], p["entry"], action_props['body_params'])
                         else:
                             self.logger.error(u"Received Geofency data, but one or more parameters are missing")
                     else:
@@ -290,7 +326,7 @@ class Plugin(indigo.PluginBase):
                 if self.beecon:
                     p = json.loads(action_props['request_body'])
                     if all((name in p) for name in ('region', 'action')):
-                        self.parseResult("Beecon", p["region"], p["action"])
+                        self.parseResult("Beecon", p["region"], p["action"], action_props['body_params'])
                     else:
                         self.logger.error(u"Received Beecon data, but one or more parameters are missing")
                 else:
@@ -302,7 +338,7 @@ class Plugin(indigo.PluginBase):
                 if self.geohopper:
                     p = json.loads(action_props['request_body'])
                     if all((name in p) for name in ('sender', 'location', 'event')):
-                        self.parseResult(p["sender"], p["location"], p["event"])
+                        self.parseResult(p["sender"], p["location"], p["event"], action_props['body_params'])
                     else:
                         self.logger.error(u"Received Geohopper data, but one or more parameters are missing")
                 else:
