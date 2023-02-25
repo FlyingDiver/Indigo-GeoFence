@@ -83,7 +83,7 @@ class Plugin(indigo.PluginBase):
             self.logger.debug("ignored request (sensor is read-only)")
 
     def validatePrefsConfigUi(self, valuesDict):
-        self.logger.debug(u"validating Prefs called")
+        self.logger.debug("validating Prefs called")
         errorMsgDict = indigo.Dict()
 
         if valuesDict["reflector_api_key"] == "":
@@ -116,7 +116,7 @@ class Plugin(indigo.PluginBase):
         self.loadPluginPrefs()
 
     def loadPluginPrefs(self):
-        self.logger.debug(u"loadpluginPrefs called")
+        self.logger.debug("loadpluginPrefs called")
         self.debug = self.pluginPrefs.get('debugEnabled', False)
         self.reflector_api_key = self.pluginPrefs.get("reflector_api_key", None)
 
@@ -176,84 +176,6 @@ class Plugin(indigo.PluginBase):
         device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
         return device.id
 
-    def parseResult(self, sender, location, event, body_params):
-        self.logger.debug(f"parseResult called, sender: {sender}, location: {location}, event: {event}, body_params: {body_params}")
-        deviceAddress = f"{sender.lower()}@@{location.lower()}"
-        foundDevice = False
-        devID = None
-
-        if self.deviceList:
-            for devID in self.deviceList:
-                if self.deviceList[devID]['address'] == deviceAddress:
-                    self.logger.debug(f"Found userLocation device: {self.deviceList[devID]['name']}")
-                    foundDevice = True
-        if not foundDevice:
-            self.logger.warning(f"Received {event} from {deviceAddress} but no corresponding device exists")
-            if self.createDevice:
-                devID = self.deviceCreate(sender, location)
-            else:
-                devID = None
-        if not devID:
-            return
-
-        device = indigo.devices[int(devID)]
-        states_list = []
-        old_states = device.pluginProps.get("states_list", indigo.List())
-        new_states = indigo.List()
-        for key in body_params:
-            if body_params[key] is not None:
-                new_states.append(key)
-                self.logger.threaddebug(f"{device.name}: adding to states_list: {key}, {body_params[key]}, {type(body_params[key])}")
-                if type(body_params[key]) in (int, bool, str):
-                    states_list.append({'key': key, 'value': body_params[key]})
-                elif type(body_params[key]) is float:
-                    states_list.append({'key': key, 'value': body_params[key], 'decimalPlaces': 2})
-
-        if set(old_states) != set(new_states):
-            self.logger.threaddebug(f"{device.name}: update, new_states: {new_states}")
-            self.logger.threaddebug(f"{device.name}: update, states_list: {states_list}")
-            newProps = device.pluginProps
-            newProps["states_list"] = new_states
-            device.replacePluginPropsOnServer(newProps)
-            device.stateListOrDisplayStateIdChanged()
-        device.updateStatesOnServer(states_list)
-
-        if self.createVar:
-            updateVar("Beacon_deviceID", str(device.id))
-            updateVar("Beacon_name", sender.lower())
-            updateVar("Beacon_location", location.lower())
-
-        if event == "LocationEnter" or event == "enter" or event == "1" or event == self.customEnter:
-            indigo.server.log(f"Enter location notification received from sender/location {deviceAddress}")
-            device.updateStateOnServer("onOffState", True)
-            device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
-            self.triggerEvent("statePresent", deviceAddress)
-
-        elif event == "LocationExit" or event == "exit" or event == "0" or event == self.customExit:
-            indigo.server.log(f"Exit location notification received from sender/location {deviceAddress}")
-            device.updateStateOnServer("onOffState", False)
-            device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
-            self.triggerEvent("stateAbsent", deviceAddress)
-
-        elif event == "LocationTest" or event == "test":
-            indigo.server.log(f"Test location notification received from sender/location {deviceAddress}")
-            if self.testTrigger:
-                indigo.server.log(f"Trigger action on test is enabled, triggeraction: {self.testTrigger}")
-                if self.testTriggeraction == "enter":
-                    device.updateStateOnServer("onOffState", True)
-                    device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
-                elif self.testTriggeraction == "exit":
-                    device.updateStateOnServer("onOffState", False)
-                    device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
-                elif self.testTriggeraction == "toggle":
-                    device.updateStateOnServer("onOffState", not device.onState)
-                    if device.onState:
-                        device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
-                    else:
-                        device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
-
-        self.triggerEvent("stateChange", deviceAddress)
-
     def reflector_handler(self, action, dev=None, callerWaitingForResult=None):
         self.logger.debug(f"reflector_handler: {action.props}")
         self.process_message(action.props)
@@ -261,12 +183,21 @@ class Plugin(indigo.PluginBase):
 
     def process_message(self, action_props):
         foundDevice = False
+        if not (headers := action_props.get('headers', None)):
+            self.logger.error("No headers found")
+            return
+
+        if not (ctype := headers.get('content-type', None)):
+            self.logger.error("No content-type header found")
+            return
+
+        if not (uagent := headers.get('user-agent', None)):
+            self.logger.error("No user-agent header found")
+            return
+
+        self.logger.debug(f"user-agent: {uagent}, content-type: {ctype}")
 
         try:
-            ctype = action_props['headers']['Content-Type']
-            uagent = action_props['headers']['User-Agent']
-            self.logger.debug(f"User-agent: {uagent}, Content-type: {ctype}")
-
             # Custom
             if self.custom and (ctype == 'application/x-www-form-urlencoded; charset=utf-8'):
                 p = {}
@@ -349,3 +280,81 @@ class Plugin(indigo.PluginBase):
             self.logger.error(f"Exception: {e}", exc_info=True)
             pass
 
+    def parseResult(self, sender, location, event, body_params):
+        self.logger.debug(f"parseResult called, sender: {sender}, location: {location}, event: {event}, body_params: {body_params}")
+        deviceAddress = f"{sender.lower()}@@{location.lower()}"
+        foundDevice = False
+        devID = None
+
+        if self.deviceList:
+            for devID in self.deviceList:
+                if self.deviceList[devID]['address'] == deviceAddress:
+                    self.logger.debug(f"Found userLocation device: {self.deviceList[devID]['name']}")
+                    foundDevice = True
+                    break
+        if not foundDevice:
+            self.logger.warning(f"Received {event} from {deviceAddress} but no corresponding device exists")
+            if self.createDevice:
+                devID = self.deviceCreate(sender, location)
+            else:
+                devID = None
+        if not devID:
+            return
+
+        device = indigo.devices[int(devID)]
+        states_list = []
+        old_states = device.pluginProps.get("states_list", indigo.List())
+        new_states = indigo.List()
+        for key in body_params:
+            if body_params[key] is not None:
+                new_states.append(key)
+                self.logger.threaddebug(f"{device.name}: adding to states_list: {key}, {body_params[key]}, {type(body_params[key])}")
+                if type(body_params[key]) in (int, bool, str):
+                    states_list.append({'key': key, 'value': body_params[key]})
+                elif type(body_params[key]) is float:
+                    states_list.append({'key': key, 'value': body_params[key], 'decimalPlaces': 2})
+
+        if set(old_states) != set(new_states):
+            self.logger.threaddebug(f"{device.name}: update, new_states: {new_states}")
+            self.logger.threaddebug(f"{device.name}: update, states_list: {states_list}")
+            newProps = device.pluginProps
+            newProps["states_list"] = new_states
+            device.replacePluginPropsOnServer(newProps)
+            device.stateListOrDisplayStateIdChanged()
+        device.updateStatesOnServer(states_list)
+
+        if self.createVar:
+            updateVar("Beacon_deviceID", str(device.id))
+            updateVar("Beacon_name", sender.lower())
+            updateVar("Beacon_location", location.lower())
+
+        if event == "LocationEnter" or event == "enter" or event == "1" or event == self.customEnter:
+            indigo.server.log(f"Enter location notification received from sender/location {deviceAddress}")
+            device.updateStateOnServer("onOffState", True)
+            device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
+            self.triggerEvent("statePresent", deviceAddress)
+
+        elif event == "LocationExit" or event == "exit" or event == "0" or event == self.customExit:
+            indigo.server.log(f"Exit location notification received from sender/location {deviceAddress}")
+            device.updateStateOnServer("onOffState", False)
+            device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
+            self.triggerEvent("stateAbsent", deviceAddress)
+
+        elif event == "LocationTest" or event == "test":
+            indigo.server.log(f"Test location notification received from sender/location {deviceAddress}")
+            if self.testTrigger:
+                indigo.server.log(f"Trigger action on test is enabled, triggeraction: {self.testTrigger}")
+                if self.testTriggeraction == "enter":
+                    device.updateStateOnServer("onOffState", True)
+                    device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
+                elif self.testTriggeraction == "exit":
+                    device.updateStateOnServer("onOffState", False)
+                    device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
+                elif self.testTriggeraction == "toggle":
+                    device.updateStateOnServer("onOffState", not device.onState)
+                    if device.onState:
+                        device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensorTripped)
+                    else:
+                        device.updateStateImageOnServer(indigo.kStateImageSel.MotionSensor)
+
+        self.triggerEvent("stateChange", deviceAddress)
