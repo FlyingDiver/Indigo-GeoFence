@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+import fnmatch
 
 def updateVar(name, value):
     if name not in indigo.variables:
