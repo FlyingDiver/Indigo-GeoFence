@@ -184,15 +184,14 @@ class Plugin(indigo.PluginBase):
 
     def process_message(self, action_props):
         foundDevice = False
-        if not (headers := action_props.get('headers', None)):
+        if not (headers := action_props.get('headers')):
             self.logger.error("No headers found")
             return
 
-        if not (ctype := headers.get('content-type', None)):
-            self.logger.error("No content-type header found")
-            return
+        if not (ctype := headers.get('content-type')):
+            self.logger.debug("No content-type header found")
 
-        if not (uagent := headers.get('user-agent', None)):
+        if not (uagent := headers.get('user-agent')):
             self.logger.error("No user-agent header found")
             return
 
@@ -216,7 +215,7 @@ class Plugin(indigo.PluginBase):
             if ('Geofancy' in uagent) or ('Locative' in uagent):
                 self.logger.debug("Recognised Locative/Geofancy")
                 if self.geofancy:
-                    if ctype == 'application/x-www-form-urlencoded; charset=utf-8':
+                    try:
                         p = {}
                         for key, value in action_props['body_params'].items():
                             p.update({key: value})
@@ -224,8 +223,8 @@ class Plugin(indigo.PluginBase):
                             self.parseResult(p["device"], p["id"], p["trigger"], action_props['body_params'])
                         else:
                             self.logger.error("Received Locative/Geofancy data, but one or more parameters are missing")
-                    else:
-                        self.logger.error(f"Recognised Locative/Geofancy, but received data was wrong content-type: {ctype}")
+                    except Exception as e:
+                        self.logger.warning(f"Recognised Locative/Geofancy, error parsing data: {e}")
                 else:
                     self.logger.warning("Received Locative/Geofancy data, but Locative/Geofancy is disabled in plugin config")
 
